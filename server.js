@@ -1,6 +1,5 @@
 // Load environment variables first
 require('dotenv').config();
-const cloudinary = require('cloudinary').v2;
 
 // Confirm Cloudinary config
 console.log('Cloudinary configured for:', cloudinary.config().cloud_name);
