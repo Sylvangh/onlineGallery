@@ -1,16 +1,14 @@
 // Load environment variables first
 require('dotenv').config();
-const cloudinary = require('cloudinary').v2;
 
-// Confirm Cloudinary config
-console.log('Cloudinary configured for:', cloudinary.config().cloud_name);
-
-require('dotenv').config();
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const formidable = require("formidable");
 const cloudinary = require("cloudinary").v2;
+
+// Confirm Cloudinary config
+console.log('Cloudinary configured for:', process.env.CLOUDINARY_CLOUD_NAME);
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -215,5 +213,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(3000, "0.0.0.0", () => {
-    console.log("✅ Server running at http://192.168.1.27:3000/");
+    console.log("✅ Server running at http://localhost:3000/");
 });
