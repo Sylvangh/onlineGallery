@@ -225,7 +225,7 @@ const server = http.createServer((req, res) => {
       </head>
       <body>
         <div class="container">
-          <h1>Hello Sylvester! 🚀</h1>
+          <h1>Online Gallery! 🚀</h1>
           <p>Upload your own photo to display it:</p>
           <form action="/upload" method="post" enctype="multipart/form-data">
             <input type="file" name="photo" accept="image/*" required />
