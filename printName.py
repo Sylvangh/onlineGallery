@@ -1,0 +1,53 @@
+arr1 = list(map(int, input("Enter elements for Array 1 (space separated): ").split()))
+arr2 = list(map(int, input("Enter elements for Array 2 (space separated): ").split()))
+
+print("Array 1:", arr1)
+print("Array 2:", arr2)
+
+while True:
+    print("""
+Choose an operation:
+
+1. Access element
+2. Append element
+3. Update element
+4. Delete element
+5. Exit
+""")
+    choice = int(input("Enter your choice: "))
+
+    if choice == 1:
+        index = int(input("Enter index to access (Array 1): "))
+        if 0 <= index < len(arr1):
+            print("Element at index", index, "=", arr1[index])
+        else:
+            print("Invalid index!")
+
+    elif choice == 2:
+        element = int(input("Enter element to append (Array 1): "))
+        arr1.append(element)
+        print("Array 1:", arr1)
+
+    elif choice == 3:
+        index = int(input("Enter index to update (Array 1): "))
+        if 0 <= index < len(arr1):
+            new_value = int(input("Enter new value: "))
+            arr1[index] = new_value
+        else:
+            print("Invalid index!")
+        print("Array 1:", arr1)
+
+    elif choice == 4:
+        index = int(input("Enter index to delete (Array 1): "))
+        if 0 <= index < len(arr1):
+            arr1.pop(index)
+        else:
+            print("Invalid index!")
+        print("Array 1:", arr1)
+
+    elif choice == 5:
+        print("Exiting program...")
+        break
+
+    else:
+        print("Invalid choice, try again!")
