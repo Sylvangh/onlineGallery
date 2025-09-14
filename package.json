@@ -11,11 +11,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-<<<<<<< HEAD
-    "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "formidable": "^3.5.4",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "cloudinary": "^2.2.0",
+    "dotenv": "^16.3.1"
   },
   "repository": {
     "type": "git",
@@ -25,10 +25,4 @@
     "url": "https://github.com/Sylvangh/onlineGallery/issues"
   },
   "homepage": "https://github.com/Sylvangh/onlineGallery#readme"
-=======
-    "formidable": "^3.5.4",
-    "cloudinary": "^2.22.0",
-    "dotenv": "^16.3.1"
-  }
->>>>>>> 0f6df79028e3940553b3ce20706fed138c47b0c9
 }
