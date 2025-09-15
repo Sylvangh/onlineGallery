@@ -4,20 +4,15 @@ const cloudinary = require("cloudinary").v2;
 const http = require("http");
 const formidable = require("formidable");
 
-// ✅ Use CLOUDINARY_URL if set, otherwise fallback to individual vars
-if (process.env.CLOUDINARY_URL) {
-  cloudinary.config({ cloudinary_url: process.env.CLOUDINARY_URL });
-} else {
-  cloudinary.config({
-    cloud_name: process.env.CLOUD_NAME,
-    api_key: process.env.API_KEY,
-    api_secret: process.env.API_SECRET,
-  });
-}
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET,
+});
 
-console.log("Cloud Name:", process.env.CLOUD_NAME || "from CLOUDINARY_URL");
-console.log("API Key Loaded:", process.env.API_KEY ? "Yes" : "from CLOUDINARY_URL");
-console.log("API Secret Loaded:", process.env.API_SECRET ? "Yes" : "from CLOUDINARY_URL");
+console.log("Cloud Name:", process.env.CLOUD_NAME);
+console.log("API Key Loaded:", process.env.API_KEY ? "Yes" : "No");
+console.log("API Secret Loaded:", process.env.API_SECRET ? "Yes" : "No");
 
 const ADMIN_PASSWORD = "admin1234"; // 🔑 Your admin password
 
@@ -26,7 +21,7 @@ const server = http.createServer((req, res) => {
 
   // 🔹 Upload handler
   if (req.url === "/upload" && req.method.toLowerCase() === "post") {
-    const form = new formidable.IncomingForm({ multiples: false });
+    const form = formidable({ multiples: false, keepExtensions: true });
 
     form.parse(req, (err, fields, files) => {
       if (err) {
@@ -43,9 +38,9 @@ const server = http.createServer((req, res) => {
         return res.end("No file uploaded. Make sure input name='photo'");
       }
 
-      const filePath = file.filepath || file.path;
+      const filePath = file.filepath || file.path || file.tempFilePath;
       if (!filePath) {
-        console.error("File path missing!");
+        console.error("File path missing!", file);
         res.writeHead(500, { "Content-Type": "text/plain" });
         return res.end("Error: file path not found.");
       }
@@ -75,7 +70,6 @@ const server = http.createServer((req, res) => {
         `);
       });
     });
-
     return;
   }
 
