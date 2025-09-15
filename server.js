@@ -1,6 +1,13 @@
-// 1️⃣ Cloudinary setup
-const cloudinary = require("cloudinary").v2;
+// 1️⃣ Load environment variables
 require("dotenv").config();
+
+// ✅ Check if environment variables are loaded
+console.log("Cloud Name:", process.env.CLOUD_NAME || "Not Found");
+console.log("API Key Loaded:", process.env.API_KEY ? "Yes" : "No");
+console.log("API Secret Loaded:", process.env.API_SECRET ? "Yes" : "No");
+
+// 2️⃣ Cloudinary setup
+const cloudinary = require("cloudinary").v2;
 
 cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
@@ -13,7 +20,7 @@ const formidable = require("formidable");
 
 const ADMIN_PASSWORD = "admin1234"; // 🔑 Your admin password
 
-// 2️⃣ Create server
+// 3️⃣ Create server
 const server = http.createServer((req, res) => {
 
   // 🔹 Upload handler
@@ -32,7 +39,7 @@ const server = http.createServer((req, res) => {
         return res.end("No file uploaded.");
       }
 
-      const filePath = file.filepath || file[0].filepath;
+      const filePath = file.filepath;
 
       // Upload to Cloudinary
       cloudinary.uploader.upload(filePath, { folder: "gallery" }, (err, result) => {
@@ -137,7 +144,6 @@ const server = http.createServer((req, res) => {
       const password = params.get("password");
 
       if (password === ADMIN_PASSWORD) {
-        // List images from Cloudinary
         cloudinary.api.resources({ type: "upload", prefix: "gallery/", max_results: 30 }, (err, result) => {
           if (err) return res.end("Error loading admin panel.");
 
@@ -187,7 +193,6 @@ const server = http.createServer((req, res) => {
       const public_id = params.get("public_id");
       if (public_id) {
         cloudinary.uploader.destroy(public_id, (err, result) => {
-          // Ignore errors here
           res.writeHead(302, { Location: "/admin" });
           res.end();
         });
@@ -234,5 +239,5 @@ const server = http.createServer((req, res) => {
 
 // 🔹 Start server
 server.listen(process.env.PORT || 3000, () => {
-  console.log("✅ Server running...");
+  console.log("✅ Server running on port", process.env.PORT || 3000);
 });
