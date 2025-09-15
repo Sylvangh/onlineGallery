@@ -24,11 +24,11 @@ const ADMIN_PASSWORD = "admin1234"; // 🔑 Your admin password
 // 2️⃣ Create server
 const server = http.createServer((req, res) => {
 
-  // 🔹 Upload handler (fixed)
+  // 🔹 Upload handler (FIXED)
   if (req.url === "/upload" && req.method.toLowerCase() === "post") {
     const form = new formidable.IncomingForm({
       multiples: false,
-      keepExtensions: true // important!
+      keepExtensions: true // important for file extension
     });
 
     form.parse(req, (err, fields, files) => {
@@ -38,15 +38,19 @@ const server = http.createServer((req, res) => {
         return res.end("Error parsing the file.");
       }
 
-      console.log("Files received:", files); // 🔍 debug
+      console.log("Files received:", files);
 
-      const file = files.photo; // make sure input name="photo"
+      let file = files.photo;
+
+      // 🔹 If Formidable returned an array, pick the first file
+      if (Array.isArray(file)) file = file[0];
+
       if (!file) {
         res.writeHead(400, { "Content-Type": "text/plain" });
         return res.end("No file uploaded. Make sure input name='photo'");
       }
 
-      const filePath = file.filepath || file.path;
+      const filePath = file.filepath; // string path for Cloudinary
       if (!filePath) {
         console.error("File path missing!", file);
         res.writeHead(500, { "Content-Type": "text/plain" });
