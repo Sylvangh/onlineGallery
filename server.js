@@ -1,19 +1,18 @@
 // 1️⃣ Cloudinary setup
 require("dotenv").config(); // load .env
-
-console.log("Cloud Name:", process.env.CLOUD_NAME);
-console.log("API Key Loaded:", process.env.API_KEY ? "Yes" : "No");
-console.log("API Secret Loaded:", process.env.API_SECRET ? "Yes" : "No");
-
 const cloudinary = require("cloudinary").v2;
+const http = require("http");
+const formidable = require("formidable");
+
 cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
   api_key: process.env.API_KEY,
   api_secret: process.env.API_SECRET,
 });
 
-const http = require("http");
-const formidable = require("formidable");
+console.log("Cloud Name:", process.env.CLOUD_NAME);
+console.log("API Key Loaded:", process.env.API_KEY ? "Yes" : "No");
+console.log("API Secret Loaded:", process.env.API_SECRET ? "Yes" : "No");
 
 const ADMIN_PASSWORD = "admin1234"; // 🔑 Your admin password
 
@@ -31,16 +30,17 @@ const server = http.createServer((req, res) => {
         return res.end("Error parsing the file.");
       }
 
+      console.log("Files received:", files);
+
       const file = files.photo;
       if (!file) {
         res.writeHead(400, { "Content-Type": "text/plain" });
         return res.end("No file uploaded.");
       }
 
-      const filePath = file.filepath;
+      const filePath = file.filepath || file.path; // handle all versions
       console.log("Uploading file from path:", filePath);
 
-      // Upload to Cloudinary with debug
       cloudinary.uploader.upload(filePath, { folder: "gallery" }, (err, result) => {
         if (err) {
           console.error("Cloudinary upload error:", err);
@@ -48,7 +48,6 @@ const server = http.createServer((req, res) => {
           return res.end("Error uploading to Cloudinary. Check server logs.");
         }
 
-        // ✅ Success page
         res.writeHead(200, { "Content-Type": "text/html" });
         res.end(`
           <html>
@@ -65,7 +64,6 @@ const server = http.createServer((req, res) => {
         `);
       });
     });
-
     return;
   }
 
@@ -107,7 +105,7 @@ const server = http.createServer((req, res) => {
   }
 
   // 🔹 Admin login page
-  if (req.url === "/admin" && req.method === "GET") {
+  if (req.url === "/admin" && req.method.toLowerCase() === "get") {
     res.writeHead(200, { "Content-Type": "text/html" });
     res.end(`
       <html>
@@ -136,7 +134,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // 🔹 Handle admin login POST
+  // 🔹 Admin login POST
   if (req.url === "/admin" && req.method.toLowerCase() === "post") {
     let body = "";
     req.on("data", chunk => body += chunk.toString());
@@ -151,25 +149,21 @@ const server = http.createServer((req, res) => {
             return res.end("Error loading admin panel.");
           }
 
-          const fileList = result.resources
-            .map(img => `
-              <div style="display:inline-block; margin:10px;">
-                <img src="${img.secure_url}" style="max-width:150px; border-radius:10px;">
-                <form action="/delete" method="post">
-                  <input type="hidden" name="public_id" value="${img.public_id}">
-                  <button type="submit" style="background:#f44336; color:white; border:none; padding:5px 10px; border-radius:6px;">🗑 Delete</button>
-                </form>
-              </div>
-            `).join("");
+          const fileList = result.resources.map(img => `
+            <div style="display:inline-block; margin:10px;">
+              <img src="${img.secure_url}" style="max-width:150px; border-radius:10px;">
+              <form action="/delete" method="post">
+                <input type="hidden" name="public_id" value="${img.public_id}">
+                <button type="submit" style="background:#f44336; color:white; border:none; padding:5px 10px; border-radius:6px;">🗑 Delete</button>
+              </form>
+            </div>
+          `).join("");
 
           res.writeHead(200, { "Content-Type": "text/html" });
           res.end(`
             <html>
-              <head>
-                <title>Admin Panel</title>
-                <style>body { font-family: Arial; text-align: center; background: #f9fbe7; }</style>
-              </head>
-              <body>
+              <head><title>Admin Panel</title></head>
+              <body style="font-family:Arial; text-align:center; background:#f9fbe7;">
                 <h1>📂 Admin Panel</h1>
                 ${fileList}
                 <br>
@@ -186,13 +180,14 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // 🔹 Handle delete from Cloudinary
+  // 🔹 Delete image
   if (req.url === "/delete" && req.method.toLowerCase() === "post") {
     let body = "";
     req.on("data", chunk => body += chunk.toString());
     req.on("end", () => {
       const params = new URLSearchParams(body);
       const public_id = params.get("public_id");
+
       if (public_id) {
         cloudinary.uploader.destroy(public_id, (err, result) => {
           if (err) console.error("Cloudinary delete error:", err);
@@ -214,12 +209,12 @@ const server = http.createServer((req, res) => {
       <head>
         <title>Upload Your Photo</title>
         <style>
-          body { font-family: Arial, sans-serif; text-align: center; background: linear-gradient(135deg, #ffecd2, #fcb69f); margin: 0; padding: 0; }
-          .container { margin-top: 100px; background: white; padding: 30px; border-radius: 15px; box-shadow: 0px 4px 15px rgba(0,0,0,0.2); display: inline-block; }
-          h1 { color: #333; }
+          body { font-family: Arial, sans-serif; text-align: center; background: linear-gradient(135deg, #ffecd2, #fcb69f); margin:0; padding:0; }
+          .container { margin-top: 100px; background: white; padding:30px; border-radius:15px; box-shadow:0 4px 15px rgba(0,0,0,0.2); display:inline-block; }
+          h1 { color:#333; }
           input[type=file] { margin: 20px 0; }
-          button { padding: 10px 20px; border: none; border-radius: 10px; background: #4CAF50; color: white; font-size: 16px; cursor: pointer; }
-          button:hover { background: #45a049; transform: scale(1.05); }
+          button { padding: 10px 20px; border:none; border-radius:10px; background:#4CAF50; color:white; font-size:16px; cursor:pointer; }
+          button:hover { background:#45a049; transform:scale(1.05); }
         </style>
       </head>
       <body>
@@ -238,6 +233,7 @@ const server = http.createServer((req, res) => {
       </body>
     </html>
   `);
+
 });
 
 // 🔹 Start server
