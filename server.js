@@ -4,15 +4,9 @@ const cloudinary = require("cloudinary").v2;
 const http = require("http");
 const formidable = require("formidable");
 
-cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.API_KEY,
-  api_secret: process.env.API_SECRET,
-});
+cloudinary.config({ secure: true }); // will automatically use CLOUDINARY_URL
 
-console.log("Cloud Name:", process.env.CLOUD_NAME);
-console.log("API Key Loaded:", process.env.API_KEY ? "Yes" : "No");
-console.log("API Secret Loaded:", process.env.API_SECRET ? "Yes" : "No");
+console.log("Cloudinary configured successfully.");
 
 const ADMIN_PASSWORD = "admin1234"; // 🔑 Your admin password
 
@@ -38,7 +32,7 @@ const server = http.createServer((req, res) => {
         return res.end("No file uploaded.");
       }
 
-      const filePath = file.filepath || file.path; // handle all versions
+      const filePath = file.filepath || file.path; // support all Formidable versions
       console.log("Uploading file from path:", filePath);
 
       cloudinary.uploader.upload(filePath, { folder: "gallery" }, (err, result) => {
@@ -104,7 +98,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // 🔹 Admin login page
+  // 🔹 Admin login GET
   if (req.url === "/admin" && req.method.toLowerCase() === "get") {
     res.writeHead(200, { "Content-Type": "text/html" });
     res.end(`
