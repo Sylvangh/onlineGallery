@@ -7,28 +7,23 @@ cloudinary.config({
   api_key: process.env.API_KEY,
   api_secret: process.env.API_SECRET,
 });
-const http = require("http");
-const fs = require("fs");
-const path = require("path");
-const formidable = require("formidable");
 
-const UPLOAD_DIR = path.join(__dirname, "uploads");
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
+const http = require("http");
+const formidable = require("formidable");
 
 const ADMIN_PASSWORD = "admin1234"; // 🔑 Your admin password
 
-// Create server
+// 2️⃣ Create server
 const server = http.createServer((req, res) => {
-  // ✅ Upload handler
+
+  // 🔹 Upload handler
   if (req.url === "/upload" && req.method.toLowerCase() === "post") {
     const form = new formidable.IncomingForm({ multiples: false });
-    form.uploadDir = UPLOAD_DIR;
-    form.keepExtensions = true;
-
+    
     form.parse(req, (err, fields, files) => {
       if (err) {
         res.writeHead(500, { "Content-Type": "text/plain" });
-        return res.end("Error uploading file.");
+        return res.end("Error parsing the file.");
       }
 
       const file = files.photo;
@@ -37,56 +32,39 @@ const server = http.createServer((req, res) => {
         return res.end("No file uploaded.");
       }
 
-      const oldPath = file[0].filepath;
-      const newPath = path.join(UPLOAD_DIR, file[0].originalFilename);
+      const filePath = file.filepath || file[0].filepath;
 
-    cloudinary.uploader.upload(oldPath, { folder: "gallery" }, (err, result) => {
-  if (err) {
-    res.writeHead(500, { "Content-Type": "text/plain" });
-    return res.end("Error uploading to Cloudinary.");
-  }
+      // Upload to Cloudinary
+      cloudinary.uploader.upload(filePath, { folder: "gallery" }, (err, result) => {
+        if (err) {
+          res.writeHead(500, { "Content-Type": "text/plain" });
+          return res.end("Error uploading to Cloudinary.");
+        }
 
-  res.writeHead(200, { "Content-Type": "text/html" });
-  res.end(`
-    <html>
-      <head><title>Upload Successful</title></head>
-      <body style="text-align:center; font-family:Arial;">
-        <h1>✅ Upload Successful!</h1>
-        <p>Your uploaded photo:</p>
-        <img src="${result.secure_url}" style="max-width:600px; border-radius:12px;" />
-        <br><br>
-        <button onclick="window.location.href='/'">🏠 Home</button>
-        <button onclick="window.location.href='/gallery'">🖼 View Gallery</button>
-      </body>
-    </html>
-  `);
-});
-return;
+        // ✅ Success page
+        res.writeHead(200, { "Content-Type": "text/html" });
+        res.end(`
+          <html>
+            <head><title>Upload Successful</title></head>
+            <body style="text-align:center; font-family:Arial;">
+              <h1>✅ Upload Successful!</h1>
+              <p>Your uploaded photo:</p>
+              <img src="${result.secure_url}" style="max-width:600px; border-radius:12px;" />
+              <br><br>
+              <button onclick="window.location.href='/'">🏠 Home</button>
+              <button onclick="window.location.href='/gallery'">🖼 View Gallery</button>
+            </body>
+          </html>
+        `);
+      });
     });
- 
 
-  // ✅ Serve uploaded files
-  if (req.url.startsWith("/uploads/")) {
-    const filePath = path.join(__dirname, req.url);
-    if (fs.existsSync(filePath)) {
-      const ext = path.extname(filePath).toLowerCase();
-      const mimeTypes = {
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".png": "image/png",
-        ".gif": "image/gif",
-      };
-      res.writeHead(200, { "Content-Type": mimeTypes[ext] || "application/octet-stream" });
-      fs.createReadStream(filePath).pipe(res);
-      return;
-    }
+    return;
   }
 
-  // ✅ Gallery page
- if (req.url === "/gallery") {
-  cloudinary.api.resources(
-    { type: "upload", prefix: "gallery/", max_results: 30 },
-    (err, result) => {
+  // 🔹 Gallery page
+  if (req.url === "/gallery") {
+    cloudinary.api.resources({ type: "upload", prefix: "gallery/", max_results: 30 }, (err, result) => {
       if (err) {
         res.writeHead(500, { "Content-Type": "text/plain" });
         return res.end("Error loading gallery.");
@@ -116,13 +94,11 @@ return;
           </body>
         </html>
       `);
-    }
-  );
-  return;
-}
+    });
+    return;
+  }
 
-
-  // ✅ Admin login page
+  // 🔹 Admin login page
   if (req.url === "/admin" && req.method === "GET") {
     res.writeHead(200, { "Content-Type": "text/html" });
     res.end(`
@@ -152,46 +128,48 @@ return;
     return;
   }
 
-  // ✅ Handle admin login POST
+  // 🔹 Handle admin login POST
   if (req.url === "/admin" && req.method.toLowerCase() === "post") {
     let body = "";
-    req.on("data", (chunk) => (body += chunk.toString()));
+    req.on("data", chunk => body += chunk.toString());
     req.on("end", () => {
       const params = new URLSearchParams(body);
       const password = params.get("password");
 
       if (password === ADMIN_PASSWORD) {
-        const files = fs.readdirSync(UPLOAD_DIR);
-        const fileList = files
-          .map(
-            (file) =>
-              `<div>
-                 <img src="/uploads/${file}" style="max-width:150px; margin:10px; border-radius:10px;">
-                 <form action="/delete" method="post" style="display:inline;">
-                   <input type="hidden" name="file" value="${file}">
-                   <button type="submit" style="background:#f44336; color:white; border:none; padding:5px 10px; border-radius:6px;">🗑 Delete</button>
-                 </form>
-               </div>`
-          )
-          .join("");
+        // List images from Cloudinary
+        cloudinary.api.resources({ type: "upload", prefix: "gallery/", max_results: 30 }, (err, result) => {
+          if (err) return res.end("Error loading admin panel.");
 
-        res.writeHead(200, { "Content-Type": "text/html" });
-        res.end(`
-          <html>
-            <head>
-              <title>Admin Panel</title>
-              <style>
-                body { font-family: Arial; text-align: center; background: #f9fbe7; }
-                .grid { display: flex; flex-wrap: wrap; justify-content: center; }
-              </style>
-            </head>
-            <body>
-              <h1>📂 Admin Panel</h1>
-              <div class="grid">${fileList}</div>
-              <button onclick="window.location.href='/'">🏠 Home</button>
-            </body>
-          </html>
-        `);
+          const fileList = result.resources
+            .map(img => `
+              <div style="display:inline-block; margin:10px;">
+                <img src="${img.secure_url}" style="max-width:150px; border-radius:10px;">
+                <form action="/delete" method="post">
+                  <input type="hidden" name="public_id" value="${img.public_id}">
+                  <button type="submit" style="background:#f44336; color:white; border:none; padding:5px 10px; border-radius:6px;">🗑 Delete</button>
+                </form>
+              </div>
+            `).join("");
+
+          res.writeHead(200, { "Content-Type": "text/html" });
+          res.end(`
+            <html>
+              <head>
+                <title>Admin Panel</title>
+                <style>
+                  body { font-family: Arial; text-align: center; background: #f9fbe7; }
+                </style>
+              </head>
+              <body>
+                <h1>📂 Admin Panel</h1>
+                ${fileList}
+                <br>
+                <button onclick="window.location.href='/'">🏠 Home</button>
+              </body>
+            </html>
+          `);
+        });
       } else {
         res.writeHead(403, { "Content-Type": "text/html" });
         res.end("<h1>❌ Wrong password</h1><a href='/admin'>Try again</a>");
@@ -200,26 +178,28 @@ return;
     return;
   }
 
-  // ✅ Handle file delete
+  // 🔹 Handle delete from Cloudinary
   if (req.url === "/delete" && req.method.toLowerCase() === "post") {
     let body = "";
-    req.on("data", (chunk) => (body += chunk.toString()));
+    req.on("data", chunk => body += chunk.toString());
     req.on("end", () => {
       const params = new URLSearchParams(body);
-      const file = params.get("file");
-      const filePath = path.join(UPLOAD_DIR, file);
-
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
+      const public_id = params.get("public_id");
+      if (public_id) {
+        cloudinary.uploader.destroy(public_id, (err, result) => {
+          // Ignore errors here
+          res.writeHead(302, { Location: "/admin" });
+          res.end();
+        });
+      } else {
+        res.writeHead(302, { Location: "/admin" });
+        res.end();
       }
-
-      res.writeHead(302, { Location: "/admin" });
-      res.end();
     });
     return;
   }
 
-  // ✅ Home page
+  // 🔹 Home page
   res.writeHead(200, { "Content-Type": "text/html" });
   res.end(`
     <html>
@@ -252,6 +232,7 @@ return;
   `);
 });
 
-server.listen(3000, "0.0.0.0", () => {
-  console.log("✅ Server running at http://192.168.1.27:3000/");
+// 🔹 Start server
+server.listen(process.env.PORT || 3000, () => {
+  console.log("✅ Server running...");
 });
