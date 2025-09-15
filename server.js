@@ -4,9 +4,20 @@ const cloudinary = require("cloudinary").v2;
 const http = require("http");
 const formidable = require("formidable");
 
-cloudinary.config({ secure: true }); // will automatically use CLOUDINARY_URL
+// ✅ Use CLOUDINARY_URL if set, otherwise fallback to individual vars
+if (process.env.CLOUDINARY_URL) {
+  cloudinary.config({ cloudinary_url: process.env.CLOUDINARY_URL });
+} else {
+  cloudinary.config({
+    cloud_name: process.env.CLOUD_NAME,
+    api_key: process.env.API_KEY,
+    api_secret: process.env.API_SECRET,
+  });
+}
 
-console.log("Cloudinary configured successfully.");
+console.log("Cloud Name:", process.env.CLOUD_NAME || "from CLOUDINARY_URL");
+console.log("API Key Loaded:", process.env.API_KEY ? "Yes" : "from CLOUDINARY_URL");
+console.log("API Secret Loaded:", process.env.API_SECRET ? "Yes" : "from CLOUDINARY_URL");
 
 const ADMIN_PASSWORD = "admin1234"; // 🔑 Your admin password
 
@@ -29,10 +40,16 @@ const server = http.createServer((req, res) => {
       const file = files.photo;
       if (!file) {
         res.writeHead(400, { "Content-Type": "text/plain" });
-        return res.end("No file uploaded.");
+        return res.end("No file uploaded. Make sure input name='photo'");
       }
 
-      const filePath = file.filepath || file.path; // support all Formidable versions
+      const filePath = file.filepath || file.path;
+      if (!filePath) {
+        console.error("File path missing!");
+        res.writeHead(500, { "Content-Type": "text/plain" });
+        return res.end("Error: file path not found.");
+      }
+
       console.log("Uploading file from path:", filePath);
 
       cloudinary.uploader.upload(filePath, { folder: "gallery" }, (err, result) => {
@@ -58,6 +75,7 @@ const server = http.createServer((req, res) => {
         `);
       });
     });
+
     return;
   }
 
@@ -98,7 +116,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // 🔹 Admin login GET
+  // 🔹 Admin login page
   if (req.url === "/admin" && req.method.toLowerCase() === "get") {
     res.writeHead(200, { "Content-Type": "text/html" });
     res.end(`
