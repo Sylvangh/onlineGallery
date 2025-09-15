@@ -1,14 +1,11 @@
-// 1️⃣ Load environment variables
-require("dotenv").config();
+// 1️⃣ Cloudinary setup
+require("dotenv").config(); // load .env
 
-// ✅ Check if environment variables are loaded
-console.log("Cloud Name:", process.env.CLOUD_NAME || "Not Found");
+console.log("Cloud Name:", process.env.CLOUD_NAME);
 console.log("API Key Loaded:", process.env.API_KEY ? "Yes" : "No");
 console.log("API Secret Loaded:", process.env.API_SECRET ? "Yes" : "No");
 
-// 2️⃣ Cloudinary setup
 const cloudinary = require("cloudinary").v2;
-
 cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
   api_key: process.env.API_KEY,
@@ -20,15 +17,16 @@ const formidable = require("formidable");
 
 const ADMIN_PASSWORD = "admin1234"; // 🔑 Your admin password
 
-// 3️⃣ Create server
+// 2️⃣ Create server
 const server = http.createServer((req, res) => {
 
   // 🔹 Upload handler
   if (req.url === "/upload" && req.method.toLowerCase() === "post") {
     const form = new formidable.IncomingForm({ multiples: false });
-    
+
     form.parse(req, (err, fields, files) => {
       if (err) {
+        console.error("Formidable parse error:", err);
         res.writeHead(500, { "Content-Type": "text/plain" });
         return res.end("Error parsing the file.");
       }
@@ -40,12 +38,14 @@ const server = http.createServer((req, res) => {
       }
 
       const filePath = file.filepath;
+      console.log("Uploading file from path:", filePath);
 
-      // Upload to Cloudinary
+      // Upload to Cloudinary with debug
       cloudinary.uploader.upload(filePath, { folder: "gallery" }, (err, result) => {
         if (err) {
+          console.error("Cloudinary upload error:", err);
           res.writeHead(500, { "Content-Type": "text/plain" });
-          return res.end("Error uploading to Cloudinary.");
+          return res.end("Error uploading to Cloudinary. Check server logs.");
         }
 
         // ✅ Success page
@@ -73,6 +73,7 @@ const server = http.createServer((req, res) => {
   if (req.url === "/gallery") {
     cloudinary.api.resources({ type: "upload", prefix: "gallery/", max_results: 30 }, (err, result) => {
       if (err) {
+        console.error("Cloudinary gallery error:", err);
         res.writeHead(500, { "Content-Type": "text/plain" });
         return res.end("Error loading gallery.");
       }
@@ -145,7 +146,10 @@ const server = http.createServer((req, res) => {
 
       if (password === ADMIN_PASSWORD) {
         cloudinary.api.resources({ type: "upload", prefix: "gallery/", max_results: 30 }, (err, result) => {
-          if (err) return res.end("Error loading admin panel.");
+          if (err) {
+            console.error("Cloudinary admin panel error:", err);
+            return res.end("Error loading admin panel.");
+          }
 
           const fileList = result.resources
             .map(img => `
@@ -163,9 +167,7 @@ const server = http.createServer((req, res) => {
             <html>
               <head>
                 <title>Admin Panel</title>
-                <style>
-                  body { font-family: Arial; text-align: center; background: #f9fbe7; }
-                </style>
+                <style>body { font-family: Arial; text-align: center; background: #f9fbe7; }</style>
               </head>
               <body>
                 <h1>📂 Admin Panel</h1>
@@ -193,6 +195,7 @@ const server = http.createServer((req, res) => {
       const public_id = params.get("public_id");
       if (public_id) {
         cloudinary.uploader.destroy(public_id, (err, result) => {
+          if (err) console.error("Cloudinary delete error:", err);
           res.writeHead(302, { Location: "/admin" });
           res.end();
         });
