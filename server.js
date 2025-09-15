@@ -3,6 +3,7 @@ require("dotenv").config(); // load .env
 const cloudinary = require("cloudinary").v2;
 const http = require("http");
 const formidable = require("formidable");
+const fs = require("fs"); // for deleting temp files
 
 // ✅ Use CLOUDINARY_URL if set, otherwise fallback to individual vars
 if (process.env.CLOUDINARY_URL) {
@@ -65,6 +66,11 @@ const server = http.createServer((req, res) => {
           res.writeHead(500, { "Content-Type": "text/plain" });
           return res.end("Error uploading to Cloudinary. Check server logs.");
         }
+
+        // 🔹 Delete temp file immediately after upload
+        fs.unlink(filePath, (err) => {
+          if (err) console.error("Failed to delete temp file:", err);
+        });
 
         res.writeHead(200, { "Content-Type": "text/html" });
         res.end(`
