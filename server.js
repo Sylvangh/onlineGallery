@@ -1,11 +1,11 @@
 // 1️⃣ Cloudinary setup
-require("dotenv").config(); // load .env
+require("dotenv").config();
 const cloudinary = require("cloudinary").v2;
 const http = require("http");
 const formidable = require("formidable");
-const fs = require("fs"); // for deleting temp files
+const fs = require("fs");
 
-// ✅ Use CLOUDINARY_URL if set, otherwise fallback to individual vars
+// ✅ Configure Cloudinary
 if (process.env.CLOUDINARY_URL) {
   cloudinary.config({ cloudinary_url: process.env.CLOUDINARY_URL });
 } else {
@@ -20,16 +20,16 @@ console.log("Cloud Name:", process.env.CLOUD_NAME || "from CLOUDINARY_URL");
 console.log("API Key Loaded:", process.env.API_KEY ? "Yes" : "from CLOUDINARY_URL");
 console.log("API Secret Loaded:", process.env.API_SECRET ? "Yes" : "from CLOUDINARY_URL");
 
-const ADMIN_PASSWORD = "admin1234"; // 🔑 Your admin password
+const ADMIN_PASSWORD = "admin1234";
 
 // 2️⃣ Create server
 const server = http.createServer((req, res) => {
 
-  // 🔹 Upload handler (FIXED)
+  // 🔹 Upload handler
   if (req.url === "/upload" && req.method.toLowerCase() === "post") {
     const form = new formidable.IncomingForm({
       multiples: false,
-      keepExtensions: true // important for file extension
+      keepExtensions: true
     });
 
     form.parse(req, (err, fields, files) => {
@@ -39,38 +39,25 @@ const server = http.createServer((req, res) => {
         return res.end("Error parsing the file.");
       }
 
-      console.log("Files received:", files);
+      let file = Array.isArray(files.photo) ? files.photo[0] : files.photo;
 
-      let file = files.photo;
-
-      // 🔹 If Formidable returned an array, pick the first file
-      if (Array.isArray(file)) file = file[0];
-
-      if (!file) {
+      if (!file || !file.filepath) {
         res.writeHead(400, { "Content-Type": "text/plain" });
-        return res.end("No file uploaded. Make sure input name='photo'");
+        return res.end("No file uploaded or file path missing.");
       }
 
-      const filePath = file.filepath; // string path for Cloudinary
-      if (!filePath) {
-        console.error("File path missing!", file);
-        res.writeHead(500, { "Content-Type": "text/plain" });
-        return res.end("Error: file path not found.");
-      }
-
+      const filePath = file.filepath;
       console.log("Uploading file from path:", filePath);
 
       cloudinary.uploader.upload(filePath, { folder: "gallery" }, (err, result) => {
+        // Delete temp file immediately
+        fs.unlink(filePath, (e) => { if (e) console.error("Failed to delete temp file:", e); });
+
         if (err) {
           console.error("Cloudinary upload error:", err);
           res.writeHead(500, { "Content-Type": "text/plain" });
-          return res.end("Error uploading to Cloudinary. Check server logs.");
+          return res.end("Error uploading to Cloudinary.");
         }
-
-        // 🔹 Delete temp file immediately after upload
-        fs.unlink(filePath, (err) => {
-          if (err) console.error("Failed to delete temp file:", err);
-        });
 
         res.writeHead(200, { "Content-Type": "text/html" });
         res.end(`
@@ -88,7 +75,6 @@ const server = http.createServer((req, res) => {
         `);
       });
     });
-
     return;
   }
 
@@ -101,9 +87,9 @@ const server = http.createServer((req, res) => {
         return res.end("Error loading gallery.");
       }
 
-      const images = result.resources
-        .map(img => `<div><img src="${img.secure_url}" style="max-width:200px; margin:10px; border-radius:10px;"></div>`)
-        .join("");
+      const images = result.resources.map(img =>
+        `<div><img src="${img.secure_url}" style="max-width:200px; margin:10px; border-radius:10px;"></div>`
+      ).join("");
 
       res.writeHead(200, { "Content-Type": "text/html" });
       res.end(`
@@ -129,10 +115,10 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // 🔹 Admin login page
+  // 🔹 Admin login GET
   if (req.url === "/admin" && req.method.toLowerCase() === "get") {
     res.writeHead(200, { "Content-Type": "text/html" });
-    res.end(`
+    return res.end(`
       <html>
         <head>
           <title>Admin Login</title>
@@ -156,7 +142,6 @@ const server = http.createServer((req, res) => {
         </body>
       </html>
     `);
-    return;
   }
 
   // 🔹 Admin login POST
@@ -164,15 +149,11 @@ const server = http.createServer((req, res) => {
     let body = "";
     req.on("data", chunk => body += chunk.toString());
     req.on("end", () => {
-      const params = new URLSearchParams(body);
-      const password = params.get("password");
+      const password = new URLSearchParams(body).get("password");
 
       if (password === ADMIN_PASSWORD) {
         cloudinary.api.resources({ type: "upload", prefix: "gallery/", max_results: 30 }, (err, result) => {
-          if (err) {
-            console.error("Cloudinary admin panel error:", err);
-            return res.end("Error loading admin panel.");
-          }
+          if (err) return res.end("Error loading admin panel.");
 
           const fileList = result.resources.map(img => `
             <div style="display:inline-block; margin:10px;">
@@ -210,11 +191,9 @@ const server = http.createServer((req, res) => {
     let body = "";
     req.on("data", chunk => body += chunk.toString());
     req.on("end", () => {
-      const params = new URLSearchParams(body);
-      const public_id = params.get("public_id");
-
+      const public_id = new URLSearchParams(body).get("public_id");
       if (public_id) {
-        cloudinary.uploader.destroy(public_id, (err, result) => {
+        cloudinary.uploader.destroy(public_id, (err) => {
           if (err) console.error("Cloudinary delete error:", err);
           res.writeHead(302, { Location: "/admin" });
           res.end();
@@ -261,7 +240,13 @@ const server = http.createServer((req, res) => {
 
 });
 
-// 🔹 Start server
-server.listen(process.env.PORT || 3000, () => {
-  console.log("✅ Server running on port", process.env.PORT || 3000);
+// 🔹 Start server on Render port ONLY
+const PORT = process.env.PORT;
+if (!PORT) {
+  console.error("❌ PORT environment variable is missing. Exiting.");
+  process.exit(1);
+}
+
+server.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
 });
