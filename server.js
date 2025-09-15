@@ -17,7 +17,7 @@ if (process.env.CLOUDINARY_URL) {
 
 console.log("Cloudinary configured:", !!process.env.CLOUDINARY_URL || !!process.env.CLOUD_NAME);
 
-const ADMIN_PASSWORD = "admin1234"; // 🔑 Your admin password
+const ADMIN_PASSWORD = "admin1234";
 
 // 2️⃣ Create server
 const server = http.createServer((req, res) => {
@@ -35,17 +35,15 @@ const server = http.createServer((req, res) => {
 
       console.log("Files received:", files);
 
-      // 🔹 Check for the uploaded file (input name must be 'photo')
-      const file = files.photo;
+      const file = files.photo; // input name="photo"
       if (!file) {
         res.writeHead(400, { "Content-Type": "text/plain" });
         return res.end("No file uploaded. Make sure input name='photo'");
       }
 
-      // 🔹 Get file path safely
-      const filePath = file.filepath || file.path || file.file; 
+      const filePath = file.filepath || file.path;
       if (!filePath) {
-        console.error("File path missing:", file);
+        console.error("File path missing!", file);
         res.writeHead(500, { "Content-Type": "text/plain" });
         return res.end("Error: file path not found.");
       }
